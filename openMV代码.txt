@@ -1,0 +1,48 @@
+#追踪某个颜色
+import sensor, image, time
+import ustruct
+from pyb import UART
+
+threshold = [50, 50, 0, 0, 0, 0]
+
+red_threshold_01 =(49, 100, -113, 81, 36, 127)
+sensor.reset()
+sensor.set_pixformat(sensor.RGB565)
+sensor.set_framesize(sensor.QVGA)
+#sensor.set_vflip(1)
+#sensor.set_hmirror(1)
+sensor.skip_frames(time = 2000)
+sensor.set_auto_whitebal(False)
+uart = UART(3, 115200)
+
+clock = time.clock()
+
+def find_max(blobs):    #定义寻找色块面积最大的函数
+            max_size=0
+            for blob in blobs:
+                if blob.pixels() > max_size:
+                    max_blob=blob
+                    max_size = blob.pixels()
+            return max_blob
+
+while(True):
+    clock.tick()
+    img = sensor.snapshot()
+    #print(clock.fps())
+    blobs = img.find_blobs([red_threshold_01], pixels_threshold=100, area_threshold=100, merge=True, margin=10);
+    cx=0;cy=0;
+    if blobs:
+                #如果找到了目标颜色
+                max_b = find_max(blobs);
+                # Draw a rect around the blob.
+                img.draw_rectangle(max_b[0:4]) # rect
+                #用矩形标记出目标颜色区域
+                img.draw_cross(max_b[5], max_b[6]) # cx, cy
+                img.draw_cross(160, 120) # 在中心点画标记
+                #在目标颜色区域的中心画十字形标记
+                cx=max_b[5];
+                cy=max_b[6];
+                img.draw_line((160,120,cx,cy), color=(127));
+                img.draw_string(cx, cy, "(%d, %d)"%(cx,cy), color=(127));
+                FH = bytearray([cx,cy])
+                uart.write(FH)
